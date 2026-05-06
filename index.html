@@ -382,7 +382,7 @@
     <span id="latency-val">0 ms</span>
   </div>
 
-  <div id="version">v1.0.0</div>
+  <div id="version">v1.0.1</div>
 
   <div id="headphone-warning">
     <span class="icon">🎧</span>
@@ -899,8 +899,8 @@
     }
 
     function onPressEnd(e) {
-      e.preventDefault();
       if (!isHolding) return;
+      e.preventDefault();
       isHolding = false;
       stopRecording();
     }
