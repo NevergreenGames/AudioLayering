@@ -421,6 +421,9 @@
     // Flag: we're mid-decode after a recording stops
     let isDecoding = false;
 
+    // Flag: user released the button before async setup finished
+    let startAborted = false;
+
     // Waveform colours per layer
     const LAYER_COLORS = ['#4a8cf7', '#f7c44a', '#4af7a0', '#f74a8c', '#a44af7', '#f7714a'];
 
@@ -435,24 +438,52 @@
     let activeNodes = [];
 
     // ── Init ──────────────────────────────────────────────────────────────
-    async function init() {
-      try {
-        audioCtx    = new (window.AudioContext || window.webkitAudioContext)();
-        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }, video: false });
-        recordBtn.disabled = false;
-        setStatus('Ready — hold the button to record your first layer');
-      } catch (err) {
-        setStatus('Microphone access denied. Reload and allow mic access.');
-        console.error(err);
+    function init() {
+      // Check basic browser support — everything else is set up lazily on first press
+      // so the AudioContext is created inside a user gesture (required on mobile).
+      if (!navigator.mediaDevices || !window.AudioContext && !window.webkitAudioContext) {
+        setStatus('Your browser does not support Web Audio. Try Chrome or Safari.');
+        return;
+      }
+      recordBtn.disabled = false;
+      setStatus('Hold the button to record your first layer');
+    }
+
+    // Creates the AudioContext and mic stream the first time, always inside a
+    // user-gesture handler so mobile browsers allow it.
+    async function ensureReady() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+      if (!mediaStream) {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+          video: false
+        });
       }
     }
 
     // ── Recording ─────────────────────────────────────────────────────────
     let recordingStartOffset = 0; // loop offset (seconds) at which recording began
 
-    function startRecording() {
-      if (isDecoding) return; // still processing last recording
-      if (audioCtx.state === 'suspended') audioCtx.resume();
+    async function startRecording() {
+      if (isDecoding) return;
+      startAborted = false;
+
+      // Set up AudioContext + mic inside the user gesture so mobile allows it.
+      try {
+        await ensureReady();
+      } catch (err) {
+        setStatus('Microphone access denied. Check permissions and try again.');
+        console.error(err);
+        return;
+      }
+
+      // User may have released the button while we were awaiting permissions.
+      if (startAborted) return;
 
       // Capture offset within the current loop
       recordingStartOffset = loopLength > 0
@@ -471,6 +502,7 @@
     }
 
     function stopRecording() {
+      startAborted = true; // signal startRecording to bail if still in async setup
       if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
 
       recordBtn.classList.remove('recording');
@@ -839,7 +871,7 @@
     }
 
     function getSupportedMimeType() {
-      const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg'];
+      const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg', 'audio/mp4'];
       return types.find(t => MediaRecorder.isTypeSupported(t)) || '';
     }
 
