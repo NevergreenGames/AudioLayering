@@ -414,6 +414,8 @@
       line-height: 1.35;
     }
 
+    .setting-row + .setting-row { margin-top: 0.9rem; }
+
     .setting-row input[type="checkbox"] {
       margin-top: 0.15em;
       accent-color: #4a8cf7;
@@ -697,6 +699,15 @@
         automatically.</small>
       </span>
     </label>
+    <label class="setting-row">
+      <input type="checkbox" id="raw-mic-toggle" />
+      <span>
+        Raw mic (studio)
+        <small>Disables echo cancellation, noise suppression, and auto gain for
+        faithful instrument capture. Voice usually sounds better with this off.
+        Takes effect on the next recording.</small>
+      </span>
+    </label>
   </div>
 
   <div id="viz-area">
@@ -761,7 +772,7 @@
     </div>
   </div>
 
-  <div id="version">v1.4.1</div>
+  <div id="version">v1.4.2</div>
 
   <div id="headphone-warning">
     <span class="icon">🎧</span>
@@ -803,6 +814,7 @@
     const settingsBtn       = document.getElementById('settings-btn');
     const settingsPanel     = document.getElementById('settings-panel');
     const pttToggle         = document.getElementById('ptt-toggle');
+    const rawMicToggle      = document.getElementById('raw-mic-toggle');
     const historyBtn        = document.getElementById('history-btn');
     const historyPanel      = document.getElementById('history-panel');
     const historyList       = document.getElementById('history-list');
@@ -812,6 +824,13 @@
     // ── Settings ──────────────────────────────────────────────────────────
     const LS_PTT = 'audioLayering.pushToTalk';
     let pushToTalk = localStorage.getItem(LS_PTT) === '1';
+
+    // Voice processing (echo cancellation, noise suppression, auto gain) is ON
+    // by default — it keeps speech loud and clean. Raw mode is for capturing
+    // instruments faithfully.
+    const LS_RAW = 'audioLayering.rawMic';
+    let rawMic = localStorage.getItem(LS_RAW) === '1';
+    let micRefreshPending = false; // constraints changed while a recorder was live
 
     // ── History persistence (IndexedDB) ───────────────────────────────────
     // Each session (one loop + its layers) is auto-saved as layers arrive, so
@@ -950,6 +969,7 @@
         return;
       }
       pttToggle.checked = pushToTalk;
+      rawMicToggle.checked = rawMic;
       recordBtn.disabled = false;
       updateIdleLabel();
       setStatus(pushToTalk
@@ -983,7 +1003,9 @@
       await ensureCtx();
       if (!mediaStream) {
         mediaStream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+          audio: rawMic
+            ? { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+            : { echoCancellation: true,  noiseSuppression: true,  autoGainControl: true },
           video: false
         });
       }
@@ -1010,10 +1032,30 @@
 
     function makeRecorder() {
       const mimeType = getSupportedMimeType();
-      const rec = new MediaRecorder(mediaStream, mimeType ? { mimeType } : {});
+      const opts = { audioBitsPerSecond: 128000 }; // don't rely on browser default quality
+      if (mimeType) opts.mimeType = mimeType;
+      const rec = new MediaRecorder(mediaStream, opts);
       rec.chunks = [];
       rec.ondataavailable = e => { if (e.data.size > 0) rec.chunks.push(e.data); };
       return rec;
+    }
+
+    // Release the mic so the next recording re-acquires it with the current
+    // constraints (used when the raw-mic setting changes).
+    function dropMicStream() {
+      if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+      mediaStream = null;
+      micAnalyser = null;
+      micData     = null;
+    }
+
+    // Safe point to apply a pending mic-constraint change: only when no
+    // recorder is live (stopping tracks under an active recorder loses audio).
+    function refreshMicIfPending() {
+      if (!micRefreshPending) return;
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') return;
+      micRefreshPending = false;
+      dropMicStream();
     }
 
     // ── Recording (manual: first layer, and every layer in push-to-talk) ──
@@ -1022,6 +1064,7 @@
     async function startRecording() {
       if (isDecoding) return;
       startAborted = false;
+      refreshMicIfPending();
 
       // Set up AudioContext + mic inside the user gesture so mobile allows it.
       try {
@@ -1143,20 +1186,33 @@
           setStatus('Error processing audio. Try again.');
         }
         return false;
+      } finally {
+        refreshMicIfPending();
       }
     }
 
     // Does the buffer contain actual speech/sound, not just room noise?
-    // Requires ≥3 blocks (~150ms total) of 50ms whose RMS clears the threshold,
-    // so a single click or pop doesn't count.
+    // Adaptive: the threshold sits 3× above the segment's own noise floor
+    // (20th-percentile block RMS), clamped so a quiet mic still registers
+    // (floor 0.006) and wall-to-wall loud speech can't out-shout itself into
+    // rejection (cap 0.04). Requires ≥3 blocks (~150ms) above threshold, so a
+    // single click or pop doesn't count.
     function hasEnoughSound(buffer) {
       const data  = buffer.getChannelData(0);
       const block = Math.max(1, Math.floor(buffer.sampleRate * 0.05));
-      let loud = 0;
+      const rms = [];
       for (let i = 0; i + block <= data.length; i += block) {
         let sum = 0;
         for (let j = i; j < i + block; j++) sum += data[j] * data[j];
-        if (Math.sqrt(sum / block) > 0.02) {
+        rms.push(Math.sqrt(sum / block));
+      }
+      if (rms.length < 3) return false;
+      const sorted = rms.slice().sort((a, b) => a - b);
+      const noiseFloor = sorted[Math.floor(sorted.length * 0.2)];
+      const threshold = Math.min(0.04, Math.max(0.006, noiseFloor * 3));
+      let loud = 0;
+      for (const v of rms) {
+        if (v > threshold) {
           loud++;
           if (loud >= 3) return true;
         }
@@ -1170,6 +1226,7 @@
 
     async function startAutoSegments() {
       if (autoRec || !loopLength) return;
+      refreshMicIfPending();
       try {
         await ensureReady();
       } catch (err) {
@@ -2018,6 +2075,15 @@
       localStorage.setItem(LS_PTT, pushToTalk ? '1' : '0');
       if (pushToTalk && autoRec) stopAutoSegments(true);
       if (!isRecording && !isDecoding) updateIdleLabel();
+    });
+
+    rawMicToggle.addEventListener('change', () => {
+      rawMic = rawMicToggle.checked;
+      localStorage.setItem(LS_RAW, rawMic ? '1' : '0');
+      if (autoRec) stopAutoSegments(true);
+      // Swap the stream now if the mic is idle; otherwise after the recorder stops.
+      micRefreshPending = true;
+      refreshMicIfPending();
     });
 
     // ── Pause / Resume ────────────────────────────────────────────────────
