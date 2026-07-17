@@ -166,12 +166,18 @@
 
     #mixer-details[open] #mixer-summary::after { transform: rotate(180deg); }
 
+    #master-row {
+      margin-top: 0.7rem;
+      padding-bottom: 0.55rem;
+      border-bottom: 1px solid #26262f;
+    }
+
     #mixer {
       display: flex;
       flex-direction: column;
       gap: 0.45rem;
       width: 100%;
-      margin-top: 0.7rem;
+      margin-top: 0.55rem;
     }
 
     .mix-row {
@@ -350,8 +356,8 @@
       text-align: center;
     }
 
-    /* ── Settings ── */
-    #settings-btn {
+    /* ── Settings + History ── */
+    #settings-btn, #history-btn {
       position: fixed;
       top: 1rem;
       right: 1rem;
@@ -367,7 +373,9 @@
       z-index: 10;
     }
 
-    #settings-btn:hover {
+    #history-btn { right: 3.7rem; }
+
+    #settings-btn:hover, #history-btn:hover {
       border-color: #555;
       color: #bbb;
     }
@@ -420,6 +428,104 @@
       color: #666;
     }
 
+    /* ── History panel ── */
+    #history-panel {
+      position: fixed;
+      top: 3.6rem;
+      right: 1rem;
+      width: min(320px, calc(100vw - 2rem));
+      max-height: min(70vh, 420px);
+      overflow-y: auto;
+      background: #1a1a24;
+      border: 1px solid #33334a;
+      border-radius: 10px;
+      padding: 1rem;
+      display: none;
+      z-index: 10;
+    }
+
+    #history-panel.open { display: block; }
+
+    #history-panel h2 {
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #666;
+      margin-bottom: 0.5rem;
+    }
+
+    .hist-row {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #26262f;
+    }
+
+    .hist-row:last-child { border-bottom: none; }
+
+    .hist-main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .hist-name {
+      font-size: 0.8rem;
+      color: #ddd;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hist-meta {
+      font-size: 0.65rem;
+      color: #666;
+      margin-top: 0.15rem;
+    }
+
+    .hist-act {
+      background: none;
+      border: 1px solid #3a3a50;
+      border-radius: 5px;
+      color: #999;
+      font-size: 0.68rem;
+      padding: 0.3rem 0.5rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: border-color 0.15s, color 0.15s;
+      font-family: inherit;
+    }
+
+    .hist-act:hover {
+      border-color: #4a8cf7;
+      color: #cfe0ff;
+    }
+
+    .hist-del:hover {
+      border-color: #e03a3a;
+      color: #e03a3a;
+    }
+
+    .hist-rename {
+      width: 100%;
+      background: #12121a;
+      border: 1px solid #4a8cf7;
+      border-radius: 4px;
+      color: #ddd;
+      font-size: 0.8rem;
+      padding: 0.2rem 0.4rem;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .hist-empty {
+      font-size: 0.75rem;
+      color: #666;
+      text-align: center;
+      padding: 0.5rem 0;
+    }
+
     /* ── Export dialog ── */
     #export-dialog {
       position: fixed;
@@ -453,6 +559,23 @@
       color: #666;
       margin-bottom: 0.2rem;
     }
+
+    #export-name {
+      width: 100%;
+      background: #12121a;
+      border: 1px solid #3a3a50;
+      border-radius: 6px;
+      color: #ddd;
+      font-size: 0.8rem;
+      padding: 0.55rem 0.7rem;
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+
+    #export-name:focus { border-color: #4a8cf7; }
+
+    #export-name::placeholder { color: #555; }
 
     .export-opt {
       border: 1px solid #3a3a50;
@@ -556,6 +679,12 @@
 
   <h1>Audio Layering</h1>
 
+  <button id="history-btn" aria-label="History">🕘</button>
+  <div id="history-panel">
+    <h2>History</h2>
+    <div id="history-list"></div>
+  </div>
+
   <button id="settings-btn" aria-label="Settings">⚙</button>
   <div id="settings-panel">
     <h2>Settings</h2>
@@ -580,6 +709,12 @@
     </div>
     <details id="mixer-details">
       <summary id="mixer-summary">Layer Volumes</summary>
+      <div class="mix-row" id="master-row">
+        <div class="legend-dot" style="background:#e0e0e0"></div>
+        <span class="mix-label">Max</span>
+        <input type="range" id="master-slider" min="0" max="100" value="50" style="accent-color:#e0e0e0" />
+        <span class="mix-val" id="master-val">50%</span>
+      </div>
       <div id="mixer"></div>
       <div id="mixer-hint">Older layers duck automatically · sliders set each layer's own level</div>
     </details>
@@ -613,6 +748,7 @@
   <div id="export-dialog">
     <div id="export-card">
       <h2>Export</h2>
+      <input type="text" id="export-name" placeholder="Name this recording" maxlength="60" />
       <button class="export-opt" id="export-final">
         <strong>End Result</strong>
         <small id="export-final-desc">The finished loop as it sounds now</small>
@@ -625,7 +761,7 @@
     </div>
   </div>
 
-  <div id="version">v1.3.1</div>
+  <div id="version">v1.4.1</div>
 
   <div id="headphone-warning">
     <span class="icon">🎧</span>
@@ -652,6 +788,8 @@
     const mixerEl           = document.getElementById('mixer');
     const mixerDetails      = document.getElementById('mixer-details');
     const mixerSummary      = document.getElementById('mixer-summary');
+    const masterSlider      = document.getElementById('master-slider');
+    const masterVal         = document.getElementById('master-val');
     const latencyControl    = document.getElementById('latency-control');
     const latencySlider     = document.getElementById('latency-slider');
     const latencyVal        = document.getElementById('latency-val');
@@ -661,9 +799,13 @@
     const exportFinalDesc   = document.getElementById('export-final-desc');
     const exportJourneyDesc = document.getElementById('export-journey-desc');
     const exportCancel      = document.getElementById('export-cancel');
+    const exportName        = document.getElementById('export-name');
     const settingsBtn       = document.getElementById('settings-btn');
     const settingsPanel     = document.getElementById('settings-panel');
     const pttToggle         = document.getElementById('ptt-toggle');
+    const historyBtn        = document.getElementById('history-btn');
+    const historyPanel      = document.getElementById('history-panel');
+    const historyList       = document.getElementById('history-list');
     const headphoneWarn     = document.getElementById('headphone-warning');
     const dismissWarning    = document.getElementById('dismiss-warning');
 
@@ -671,13 +813,86 @@
     const LS_PTT = 'audioLayering.pushToTalk';
     let pushToTalk = localStorage.getItem(LS_PTT) === '1';
 
+    // ── History persistence (IndexedDB) ───────────────────────────────────
+    // Each session (one loop + its layers) is auto-saved as layers arrive, so
+    // past recordings survive Reset and page reloads. Layers are stored as
+    // their original encoded blobs plus the metadata needed to rebuild them.
+    let currentSessionId = null;
+    let sessionName      = '';
+    let dbPromise        = null;
+
+    function openDB() {
+      if (!dbPromise) {
+        dbPromise = new Promise((resolve, reject) => {
+          const req = indexedDB.open('audioLayering', 1);
+          req.onupgradeneeded = () => req.result.createObjectStore('sessions', { keyPath: 'id' });
+          req.onsuccess = () => resolve(req.result);
+          req.onerror   = () => reject(req.error);
+        });
+      }
+      return dbPromise;
+    }
+
+    async function idbPut(record) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('sessions', 'readwrite');
+        tx.objectStore('sessions').put(record);
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function idbAll() {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const req = db.transaction('sessions').objectStore('sessions').getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror   = () => reject(req.error);
+      });
+    }
+
+    async function idbDelete(id) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('sessions', 'readwrite');
+        tx.objectStore('sessions').delete(id);
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function saveSession() {
+      if (!layers.length || !loopLength) return;
+      if (!currentSessionId) {
+        currentSessionId = 'S' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      }
+      const record = {
+        id: currentSessionId,
+        name: sessionName,
+        updatedAt: Date.now(),
+        loopLength,
+        layers: layers.map(l => ({
+          blob: l.blob,
+          rawOffset: l.rawOffset,
+          compensate: l.compensate,
+          effVol: l.effVol,
+        })),
+      };
+      try {
+        await idbPut(record);
+      } catch (err) {
+        console.error('History save failed', err);
+      }
+    }
+
     // ── Audio state ───────────────────────────────────────────────────────
     let audioCtx        = null;
     let mediaStream     = null;
     let mediaRecorder   = null;
 
-    // Each layer: { buffer, rawOffset, offset, compensate, gain, userVolume,
-    //               effVol, peaks, peakMax, curR, curHalf, valEl }
+    // Each layer: { buffer, rawOffset, offset, compensate, gain, effVol,
+    //               peaks, peakMax, curR, curHalf, valEl, sliderEl }
     const layers = [];
 
     // Playback loop state. The loop length is fixed by the FIRST recording;
@@ -698,11 +913,22 @@
     let segmentTimer     = null;
     let currentSegOffset = 0;
 
+    // Live mic level monitor. Segment boundaries fall wherever the timer fires
+    // — usually mid-loop — so cutting blindly truncates whatever is being said
+    // right then. We watch the mic and only cut once it's been quiet a moment.
+    let micAnalyser = null;
+    let micData     = null;
+    let lastLoudAt  = 0; // performance.now() of the last loud mic sample
+
     // Waveform colours per layer
     const LAYER_COLORS = ['#4a8cf7', '#f7c44a', '#4af7a0', '#f74a8c', '#a44af7', '#f7714a'];
 
     // Latency compensation
     let manualLatencyMs = 0;
+
+    // Max (master) volume: slider 0..100, default 50 = the pre-slider loudness.
+    let masterVol  = 0.5;
+    let masterGain = null;
 
     // Pause state
     let isPaused       = false;
@@ -736,20 +962,37 @@
       btnLabel.textContent = pushToTalk ? 'Hold to Record' : 'Tap to Record';
     }
 
-    // Creates the AudioContext and mic stream the first time, always inside a
-    // user-gesture handler so mobile browsers allow it.
-    async function ensureReady() {
+    // Creates the AudioContext (and master gain) the first time, always inside
+    // a user-gesture handler so mobile browsers allow it. Playback-only paths
+    // (loading from history) use this without touching the microphone.
+    async function ensureCtx() {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (!masterGain) {
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = masterFactor();
+        masterGain.connect(audioCtx.destination);
       }
       if (audioCtx.state === 'suspended') {
         await audioCtx.resume();
       }
+    }
+
+    async function ensureReady() {
+      await ensureCtx();
       if (!mediaStream) {
         mediaStream = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
           video: false
         });
+      }
+      if (!micAnalyser) {
+        const src = audioCtx.createMediaStreamSource(mediaStream);
+        micAnalyser = audioCtx.createAnalyser();
+        micAnalyser.fftSize = 512;
+        micData = new Float32Array(micAnalyser.fftSize);
+        src.connect(micAnalyser); // analysis only — never routed to the output
       }
     }
 
@@ -857,21 +1100,22 @@
         const offset = shouldCompensate ? applyCompensation(rawOffset) : 0;
 
         const gain = audioCtx.createGain();
-        gain.connect(audioCtx.destination);
+        gain.connect(masterGain);
 
         const layer = {
           buffer: audioBuffer,
+          blob,
           rawOffset,
           offset,
           compensate: shouldCompensate,
           gain,
-          userVolume: 1,
           effVol: 1,
           peaks: null,
           peakMax: 0,
           curR: null,
           curHalf: 0,
           valEl: null,
+          sliderEl: null,
         };
         layers.push(layer);
 
@@ -886,6 +1130,8 @@
           const curOff = currentLoopOffset();
           scheduleLayerFrom(layer, audioCtx.currentTime - curOff, curOff);
         }
+
+        saveSession();
 
         if (auto && autoRec) setStatus('Layer ' + layers.length + ' added — listening…', true);
         return true;
@@ -946,7 +1192,25 @@
       mediaRecorder.start();
       isRecording = true;
       clearTimeout(segmentTimer);
-      segmentTimer = setTimeout(() => { if (autoRec) finishSegment(true); }, loopLength * 1000);
+      segmentTimer = setTimeout(() => {
+        if (autoRec) tryFinishSegment(performance.now() + Math.min(3000, loopLength * 1000));
+      }, loopLength * 1000);
+    }
+
+    // Cut the segment only once the mic has been quiet for a beat, so a sound
+    // straddling the (invisible, mid-loop) segment boundary isn't chopped. The
+    // deadline caps the extension; an over-long segment is safe — layers longer
+    // than the loop simply wrap and overlay themselves.
+    const QUIET_HOLD_MS = 200;
+
+    function tryFinishSegment(deadline) {
+      if (!autoRec) return;
+      const now = performance.now();
+      if (now - lastLoudAt < QUIET_HOLD_MS && now < deadline) {
+        segmentTimer = setTimeout(() => tryFinishSegment(deadline), 120);
+        return;
+      }
+      finishSegment(true);
     }
 
     function finishSegment(restart) {
@@ -1078,18 +1342,36 @@
     // ── Volume: per-layer sliders + automatic ducking as layers age ──────
     // Borrowed from PopThatLock's arranger: the newest layer stays foreground
     // and full; older layers duck progressively so they sit underneath.
+    // The sliders are absolute: when a layer ducks, its slider moves down with
+    // it, and dragging a slider sets that layer's actual level directly.
 
     function ageDuck(age) {
       return Math.max(0.35, Math.pow(0.78, age));
     }
 
-    function updateAllGains() {
+    // Master (max volume) — the 0..100 slider maps to a 0..2 gain, so its 50%
+    // default is exactly the loudness the app had before it existed.
+    function masterFactor() {
+      return masterVol * 2;
+    }
+
+    // Called when a new layer has just been pushed: step every older layer
+    // down one age notch, keeping any manual slider tweaks proportionally.
+    function duckOlderLayers() {
       const n = layers.length;
       layers.forEach((layer, i) => {
-        const eff = layer.userVolume * ageDuck(n - 1 - i);
-        layer.effVol = eff;
-        if (layer.gain) layer.gain.gain.setTargetAtTime(eff, audioCtx.currentTime, 0.03);
-        if (layer.valEl) layer.valEl.textContent = Math.round(eff * 100) + '%';
+        if (i === n - 1) return; // the newest keeps its level
+        const age = n - 1 - i;
+        layer.effVol = Math.min(1, layer.effVol * ageDuck(age) / ageDuck(age - 1));
+      });
+    }
+
+    function applyGains() {
+      layers.forEach(layer => {
+        if (layer.gain) layer.gain.gain.setTargetAtTime(layer.effVol, audioCtx.currentTime, 0.03);
+        const pct = Math.round(layer.effVol * 100);
+        if (layer.valEl) layer.valEl.textContent = pct + '%';
+        if (layer.sliderEl) layer.sliderEl.value = String(pct);
       });
     }
 
@@ -1113,16 +1395,20 @@
         slider.type = 'range';
         slider.min = '0';
         slider.max = '100';
-        slider.value = String(Math.round(layer.userVolume * 100));
+        slider.value = String(Math.round(layer.effVol * 100));
         slider.style.accentColor = color;
-        slider.addEventListener('input', () => {
-          layer.userVolume = slider.value / 100;
-          updateAllGains();
-        });
 
         const val = document.createElement('span');
         val.className = 'mix-val';
         layer.valEl = val;
+        layer.sliderEl = slider;
+
+        slider.addEventListener('input', () => {
+          layer.effVol = slider.value / 100;
+          if (layer.gain) layer.gain.gain.setTargetAtTime(layer.effVol, audioCtx.currentTime, 0.03);
+          val.textContent = Math.round(layer.effVol * 100) + '%';
+        });
+        slider.addEventListener('change', saveSession); // persist on release
 
         row.append(dot, label, slider, val);
         mixerEl.appendChild(row);
@@ -1155,7 +1441,18 @@
       vizRafId = requestAnimationFrame(vizFrame);
       const dt = vizLastTs ? Math.min(0.1, (ts - vizLastTs) / 1000) : 0.016;
       vizLastTs = ts;
+      sampleMicLevel();
       drawViz(dt);
+    }
+
+    // Piggybacks on the render loop: tracks when the mic last carried sound so
+    // the segment cutter can wait for a quiet moment.
+    function sampleMicLevel() {
+      if (!micAnalyser || !isRecording) return;
+      micAnalyser.getFloatTimeDomainData(micData);
+      let sum = 0;
+      for (let i = 0; i < micData.length; i++) sum += micData[i] * micData[i];
+      if (Math.sqrt(sum / micData.length) > 0.02) lastLoudAt = performance.now();
     }
 
     function hexA(hex, a) {
@@ -1351,6 +1648,7 @@
 
     function openExportDialog() {
       if (!loopLength || !layers.length) return;
+      exportName.value = sessionName;
       exportFinalDesc.textContent =
         'The finished loop as it sounds now (' + loopLength.toFixed(1) + 's)';
       exportJourneyDesc.textContent =
@@ -1378,7 +1676,12 @@
         const stageStart = s * loopLength;
         for (let i = 0; i < count; i++) {
           const layer = layers[i];
-          const level = journey ? layer.userVolume * ageDuck(count - 1 - i) : layer.effVol;
+          // Journey stages rescale each layer's current level back to the age
+          // it had at that stage; everything passes through the max volume.
+          const stageScale = journey
+            ? ageDuck(count - 1 - i) / ageDuck(layers.length - 1 - i)
+            : 1;
+          const level = layer.effVol * stageScale * masterFactor();
           const gain = offlineCtx.createGain();
           gain.gain.value = level;
           gain.connect(offlineCtx.destination);
@@ -1393,7 +1696,19 @@
       return offlineCtx.startRendering();
     }
 
+    function sanitizeFilename(name) {
+      return name.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim();
+    }
+
     async function downloadWav(journey) {
+      // The name given here doubles as the session's name in History.
+      const typed = exportName.value.trim();
+      if (typed && typed !== sessionName) {
+        sessionName = typed;
+        saveSession();
+      }
+      const base = sanitizeFilename(typed || sessionName) || 'audio-layers';
+
       closeExportDialog();
       downloadBtn.textContent = 'Rendering…';
       downloadBtn.disabled = true;
@@ -1404,7 +1719,7 @@
         const url       = URL.createObjectURL(wavBlob);
         const a         = document.createElement('a');
         a.href          = url;
-        a.download      = journey ? 'audio-layers-journey.wav' : 'audio-layers.wav';
+        a.download      = base + (journey ? '-journey' : '') + '.wav';
         a.click();
         URL.revokeObjectURL(url);
       } catch (err) {
@@ -1478,7 +1793,14 @@
       statusMsg.className   = isActive ? 'active' : '';
     }
 
+    // A newly recorded layer ages the others; a session loaded from history
+    // restores its stored levels as-is.
     function updateLayerUI() {
+      duckOlderLayers();
+      refreshLayerUI();
+    }
+
+    function refreshLayerUI() {
       layerCountEl.style.display = '';
       layerNumEl.textContent     = layers.length;
       loopDurEl.textContent      = loopLength.toFixed(1);
@@ -1488,7 +1810,7 @@
       mixerDetails.classList.add('visible');
       mixerSummary.textContent           = 'Layer Volumes (' + layers.length + ')';
       renderMixer();
-      updateAllGains();
+      applyGains();
     }
 
     function getSupportedMimeType() {
@@ -1547,9 +1869,147 @@
     // Prevent context menu on long-press (mobile)
     recordBtn.addEventListener('contextmenu', e => e.preventDefault());
 
+    // ── History panel ─────────────────────────────────────────────────────
+
+    function formatWhen(t) {
+      return new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    }
+
+    async function renderHistory() {
+      historyList.innerHTML = '';
+      let records;
+      try {
+        records = await idbAll();
+      } catch (err) {
+        console.error(err);
+        historyList.innerHTML = '<div class="hist-empty">History is unavailable in this browser.</div>';
+        return;
+      }
+      records.sort((a, b) => b.updatedAt - a.updatedAt);
+      if (!records.length) {
+        historyList.innerHTML = '<div class="hist-empty">No recordings yet.</div>';
+        return;
+      }
+
+      records.forEach(rec => {
+        const row = document.createElement('div');
+        row.className = 'hist-row';
+
+        const main = document.createElement('div');
+        main.className = 'hist-main';
+        const nameEl = document.createElement('div');
+        nameEl.className = 'hist-name';
+        nameEl.textContent = rec.name || 'Untitled';
+        const meta = document.createElement('div');
+        meta.className = 'hist-meta';
+        meta.textContent = formatWhen(rec.updatedAt) + ' · ' +
+          rec.layers.length + ' layer' + (rec.layers.length === 1 ? '' : 's') +
+          ' · ' + rec.loopLength.toFixed(1) + 's' +
+          (rec.id === currentSessionId ? ' · current' : '');
+        main.append(nameEl, meta);
+
+        const renameBtn = document.createElement('button');
+        renameBtn.className = 'hist-act';
+        renameBtn.title = 'Rename';
+        renameBtn.textContent = '✎';
+        renameBtn.addEventListener('click', () => startRename(rec, nameEl));
+
+        const loadBtn = document.createElement('button');
+        loadBtn.className = 'hist-act';
+        loadBtn.textContent = 'Load';
+        loadBtn.addEventListener('click', () => loadSession(rec));
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'hist-act hist-del';
+        delBtn.title = 'Delete';
+        delBtn.textContent = '✕';
+        delBtn.addEventListener('click', async () => {
+          try { await idbDelete(rec.id); } catch (err) { console.error(err); }
+          if (rec.id === currentSessionId) currentSessionId = null;
+          renderHistory();
+        });
+
+        row.append(main, renameBtn, loadBtn, delBtn);
+        historyList.appendChild(row);
+      });
+    }
+
+    function startRename(rec, nameEl) {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'hist-rename';
+      input.maxLength = 60;
+      input.value = rec.name || '';
+      nameEl.replaceWith(input);
+      input.focus();
+      input.select();
+      let done = false;
+      const commit = async () => {
+        if (done) return;
+        done = true;
+        rec.name = input.value.trim();
+        try { await idbPut(rec); } catch (err) { console.error(err); }
+        if (rec.id === currentSessionId) sessionName = rec.name;
+        renderHistory();
+      };
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') commit();
+        if (e.key === 'Escape') { done = true; renderHistory(); }
+      });
+      input.addEventListener('blur', commit);
+    }
+
+    // Rebuild the whole session from a stored record and start playing it.
+    async function loadSession(rec) {
+      try {
+        await ensureCtx(); // playback only — no mic needed until they record
+        resetAll();
+        loopLength = rec.loopLength;
+        for (const sl of rec.layers) {
+          const buffer = await audioCtx.decodeAudioData(await sl.blob.arrayBuffer());
+          const gain = audioCtx.createGain();
+          gain.connect(masterGain);
+          layers.push({
+            buffer,
+            blob: sl.blob,
+            rawOffset: sl.rawOffset,
+            offset: sl.compensate ? applyCompensation(sl.rawOffset) : 0,
+            compensate: sl.compensate,
+            gain,
+            effVol: sl.effVol,
+            peaks: null,
+            peakMax: 0,
+            curR: null,
+            curHalf: 0,
+            valEl: null,
+            sliderEl: null,
+          });
+        }
+        currentSessionId = rec.id;
+        sessionName = rec.name || '';
+        refreshLayerUI();
+        startLoopIteration(audioCtx.currentTime);
+        historyPanel.classList.remove('open');
+        setStatus(pushToTalk
+          ? 'Loaded "' + (rec.name || 'Untitled') + '" — hold to add another layer'
+          : 'Loaded "' + (rec.name || 'Untitled') + '" — tap to record more');
+      } catch (err) {
+        console.error(err);
+        setStatus('Could not load that recording.');
+      }
+    }
+
+    historyBtn.addEventListener('click', () => {
+      settingsPanel.classList.remove('open');
+      const opening = !historyPanel.classList.contains('open');
+      historyPanel.classList.toggle('open');
+      if (opening) renderHistory();
+    });
+
     // ── Settings ──────────────────────────────────────────────────────────
 
     settingsBtn.addEventListener('click', () => {
+      historyPanel.classList.remove('open');
       settingsPanel.classList.toggle('open');
     });
 
@@ -1627,12 +2087,15 @@
       stopAllNodes();
       layers.forEach(l => { try { l.gain.disconnect(); } catch (_) {} });
 
-      // Clear all state
+      // Clear all state. The session itself stays in History (auto-saved as
+      // layers arrived); reset just detaches from it.
       layers.length     = 0;
       loopLength        = 0;
       loopStartAudioTime = null;
       isPaused          = false;
       pausedOffset      = 0;
+      currentSessionId  = null;
+      sessionName       = '';
 
       // Reset UI (the viz keeps running — it falls back to the idle plate)
       recordBtn.disabled       = false;
@@ -1664,6 +2127,12 @@
 
     pauseBtn.addEventListener('click', togglePause);
     resetBtn.addEventListener('click', resetAll);
+
+    masterSlider.addEventListener('input', () => {
+      masterVol = masterSlider.value / 100;
+      masterVal.textContent = Math.round(masterVol * 100) + '%';
+      if (masterGain) masterGain.gain.setTargetAtTime(masterFactor(), audioCtx.currentTime, 0.03);
+    });
 
     latencySlider.addEventListener('input', () => {
       manualLatencyMs = parseInt(latencySlider.value, 10);
