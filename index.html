@@ -125,13 +125,53 @@
       cursor: not-allowed;
     }
 
-    /* ── Mixer ── */
-    #mixer {
+    /* ── Mixer (collapsible) ── */
+    #mixer-details {
       display: none;
+      width: 100%;
+      max-width: 300px;
+    }
+
+    #mixer-details.visible { display: block; }
+
+    #mixer-summary {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      cursor: pointer;
+      font-size: 0.72rem;
+      color: #888;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #333;
+      border-radius: 6px;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    #mixer-summary::-webkit-details-marker { display: none; }
+
+    #mixer-summary:hover {
+      border-color: #555;
+      color: #bbb;
+    }
+
+    #mixer-summary::after {
+      content: "▾";
+      font-size: 0.8em;
+      transition: transform 0.15s;
+    }
+
+    #mixer-details[open] #mixer-summary::after { transform: rotate(180deg); }
+
+    #mixer {
+      display: flex;
       flex-direction: column;
       gap: 0.45rem;
       width: 100%;
-      max-width: 300px;
+      margin-top: 0.7rem;
     }
 
     .mix-row {
@@ -169,7 +209,7 @@
     }
 
     #mixer-hint {
-      display: none;
+      margin-top: 0.55rem;
       font-size: 0.66rem;
       color: #444;
       letter-spacing: 0.03em;
@@ -538,8 +578,11 @@
         <span id="btn-label">Tap to Record</span>
       </button>
     </div>
-    <div id="mixer"></div>
-    <div id="mixer-hint">Older layers duck automatically · sliders set each layer's own level</div>
+    <details id="mixer-details">
+      <summary id="mixer-summary">Layer Volumes</summary>
+      <div id="mixer"></div>
+      <div id="mixer-hint">Older layers duck automatically · sliders set each layer's own level</div>
+    </details>
   </div>
 
   <div id="status-area">
@@ -582,7 +625,7 @@
     </div>
   </div>
 
-  <div id="version">v1.3.0</div>
+  <div id="version">v1.3.1</div>
 
   <div id="headphone-warning">
     <span class="icon">🎧</span>
@@ -607,7 +650,8 @@
     const resetBtn          = document.getElementById('reset-btn');
     const vizCanvas         = document.getElementById('viz-canvas');
     const mixerEl           = document.getElementById('mixer');
-    const mixerHint         = document.getElementById('mixer-hint');
+    const mixerDetails      = document.getElementById('mixer-details');
+    const mixerSummary      = document.getElementById('mixer-summary');
     const latencyControl    = document.getElementById('latency-control');
     const latencySlider     = document.getElementById('latency-slider');
     const latencyVal        = document.getElementById('latency-val');
@@ -1441,8 +1485,8 @@
       downloadBtn.style.display          = 'inline-block';
       secondaryControls.style.display    = 'flex';
       latencyControl.style.display       = 'flex';
-      mixerEl.style.display              = 'flex';
-      mixerHint.style.display            = 'block';
+      mixerDetails.classList.add('visible');
+      mixerSummary.textContent           = 'Layer Volumes (' + layers.length + ')';
       renderMixer();
       updateAllGains();
     }
@@ -1600,8 +1644,8 @@
       secondaryControls.style.display  = 'none';
       downloadBtn.style.display        = 'none';
       latencyControl.style.display     = 'none';
-      mixerEl.style.display            = 'none';
-      mixerHint.style.display          = 'none';
+      mixerDetails.classList.remove('visible');
+      mixerDetails.open                = false;
       mixerEl.innerHTML                = '';
       setStatus(pushToTalk
         ? 'Ready — hold the button to record your first layer'
